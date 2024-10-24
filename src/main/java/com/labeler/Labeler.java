@@ -4,33 +4,56 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.*;
 import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
 
 public class Labeler extends JFrame {
-    private JLabel imageLabel;
+    private String directoryPath;
+
     private JLabel filenameLabel;
     private JLabel counterLabel;
+
+    private ImagePanel imagePanel;
+
     private List<String> imagePaths;
     private int currentIndex = -1;
-    private JButton nextButton;
     private Map<String, ImageItem> imageItems;
     private CurrentItem currentItem;
-    private JPanel controlPanel;
-    private JLabel questionLabel;
-    private JButton floodingButton;
-    private JButton noFloodingButton;
 
-    public Labeler(String directoryPath) {
-        // Initialize the JFrame
+    private JButton nextButton;
+
+    private JPanel controlPanel;
+
+    private List<List<JButton>> buttonGroups = new ArrayList<>();
+
+    private static final String ARIAL = "Arial";
+
+    private final transient Border paddingBorder = BorderFactory.createEmptyBorder(5, 10, 5, 10);
+    private final Border defaultBorder = BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(), paddingBorder);
+    private final Border selectedBorder = BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Color.BLACK, 2), paddingBorder);
+
+    public Labeler() {
+        // Set the title of the JFrame
         super("Dataset Labeler");
+
+        // Select the image directory
+        directoryPath = selectImageDirectory();
+
+        // Exit if no directory is selected
+        if (directoryPath == null) {
+            System.exit(0);
+        }
+
+        // Initialize the JFrame
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLayout(new BorderLayout());
@@ -40,53 +63,46 @@ public class Labeler extends JFrame {
 
         // Create a JLabel for displaying the filename (on top of the image)
         filenameLabel = new JLabel("", SwingConstants.CENTER);
-        filenameLabel.setFont(new Font("Arial", Font.PLAIN, 24));
+        filenameLabel.setFont(new Font(ARIAL, Font.PLAIN, 24));
         mainPanel.add(filenameLabel, BorderLayout.NORTH);
 
         // Create a JLabel for displaying the counter (on the bottom)
         counterLabel = new JLabel("", SwingConstants.CENTER);
-        counterLabel.setFont(new Font("Arial", Font.PLAIN, 24));
+        counterLabel.setFont(new Font(ARIAL, Font.PLAIN, 24));
         mainPanel.add(counterLabel, BorderLayout.SOUTH);
 
-        // Create a JLabel to display images
-        imageLabel = new JLabel();
-        imageLabel.setHorizontalAlignment(JLabel.LEFT);
-        imageLabel.setVerticalAlignment(JLabel.CENTER);
-        mainPanel.add(imageLabel, BorderLayout.CENTER);
+        // Create a JPanel to display images
+        imagePanel = new ImagePanel();
+        mainPanel.add(imagePanel, BorderLayout.CENTER);
 
         // Create a JPanel to hold the control buttons
         controlPanel = new JPanel();
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
+        controlPanel.setPreferredSize(new Dimension(400, controlPanel.getPreferredSize().height));
+
+        controlPanel.add(createUrbanPanel());
 
         // Question label asking about flood status
-        questionLabel = new JLabel("Does this image contain flooding?");
-        questionLabel.setFont(new Font("Arial", Font.PLAIN, 20));
+        JLabel questionLabel = new JLabel("Is there flooding?");
+        questionLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
         controlPanel.add(questionLabel);
 
         // Create buttons for flood status selection
-        JPanel floodingButtonPanel = new JPanel();
+        controlPanel.add(createFloodingButtonPanel());
 
-        floodingButton = new JButton("Yes");
-        floodingButton.setFont(new Font("Arial", Font.BOLD, 20));
-        floodingButton.addActionListener(e -> setFloodingLabel(true));
-        floodingButtonPanel.add(floodingButton);
-
-        noFloodingButton = new JButton("No");
-        noFloodingButton.setFont(new Font("Arial", Font.BOLD, 20));
-        noFloodingButton.addActionListener(e -> setFloodingLabel(false));
-        floodingButtonPanel.add(noFloodingButton);
-
-        controlPanel.add(floodingButtonPanel);
+        // Create panel for water depth selection
+        JPanel floodDepthPanel = createfloodDepthPanel();
+        controlPanel.add(floodDepthPanel);
 
         // Create a JButton to go to the next image (on the right side)
         nextButton = new JButton("Next Image");
-        nextButton.setPreferredSize(new Dimension(200, 100));
-        nextButton.setFont(new Font("Arial", Font.BOLD, 20));
+        nextButton.setPreferredSize(new Dimension(100, 100));
+        nextButton.setFont(new Font(ARIAL, Font.BOLD, 20));
         controlPanel.add(nextButton, BorderLayout.EAST);
         nextButton.addActionListener(e -> nextImage());
         nextButton.setEnabled(false);
 
-        // Set focus to another component to prevent floodingButton or noFloodingButton from being focused
+        // Set focus to another component to prevent other buttons from being focused
         SwingUtilities.invokeLater(() -> nextButton.requestFocusInWindow());
 
         // Add the control panel to the main panel
@@ -95,18 +111,14 @@ public class Labeler extends JFrame {
         // Add the main panel to the frame
         add(mainPanel);
 
-        // Load images from the given directory
-        imagePaths = loadImagesFromDirectory(directoryPath);
+        // Load images from the selected directory
+        loadImages();
 
         // Load labels from the JSON file
         loadLabels();
 
         // Display the first image
-        if (!imagePaths.isEmpty()) {
-            nextImage();
-        } else {
-            displayMessage("No images available in the directory.");
-        }
+        nextImage();
         
         // Make the frame visible
         setVisible(true);
@@ -115,7 +127,131 @@ public class Labeler extends JFrame {
         Runtime.getRuntime().addShutdownHook(new Thread(this::onExit));
     }
 
-    private List<String> loadImagesFromDirectory(String directoryPath) {
+    private String selectImageDirectory() {
+        // Create a JFileChooser for directory selection
+        JFileChooser directoryChooser = new JFileChooser();
+        File workingDirectory = new File(System.getProperty("user.dir"));
+        directoryChooser.setCurrentDirectory(workingDirectory);
+        directoryChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+
+        // Show the dialog
+        int returnValue = directoryChooser.showOpenDialog(this);
+
+        // Return the selected directory path
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            File selectedDirectory = directoryChooser.getSelectedFile();
+            return selectedDirectory.getAbsolutePath();
+        }
+
+        // Return null if no directory was selected
+        return null;
+    }
+
+    private JPanel createUrbanPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        JLabel urbanLabel = new JLabel("Is the scene urban?");
+        urbanLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
+        panel.add(urbanLabel);
+
+        JPanel urbanButtonPanel = new JPanel();
+
+        String[] urbanStatuses = {"Yes", "No"};
+        List<JButton> urbanButtons = new ArrayList<>();
+        for (String status : urbanStatuses) {
+            JButton button = new JButton(status);
+            button.setFont(new Font(ARIAL, Font.BOLD, 20));
+            button.setBorder(defaultBorder);
+            urbanButtons.add(button);
+        }
+
+        for (JButton button : urbanButtons) {
+            button.addActionListener(e -> {
+                for (JButton b : urbanButtons) {
+                    b.setBorder(b == button ? selectedBorder : defaultBorder);
+                }
+                setUrbanLabel(button.getText().equalsIgnoreCase("yes"));
+            });
+            urbanButtonPanel.add(button, BorderLayout.CENTER);
+        }
+
+        buttonGroups.add(urbanButtons);
+        panel.add(urbanButtonPanel);
+
+        return panel;
+    }
+
+    private JPanel createFloodingButtonPanel() {
+        JPanel floodingButtonPanel = new JPanel();
+
+        String[] floodingStatuses = {"Yes", "No"};
+        List<JButton> floodingButtons = new ArrayList<>();
+        for (String status : floodingStatuses) {
+            JButton button = new JButton(status);
+            button.setFont(new Font(ARIAL, Font.BOLD, 20));
+            button.setBorder(defaultBorder);
+            floodingButtons.add(button);
+        }
+
+        for (JButton button : floodingButtons) {
+            button.addActionListener(e -> {
+                for (JButton b : floodingButtons) {
+                    b.setBorder(b == button ? selectedBorder : defaultBorder);
+                }
+                setFloodingLabel(button.getText().equalsIgnoreCase("yes"));
+            });
+            floodingButtonPanel.add(button, BorderLayout.CENTER);
+        }
+
+        buttonGroups.add(floodingButtons);
+
+        return floodingButtonPanel;
+    }
+
+    private JPanel createfloodDepthPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        JLabel floodDepthLabel = new JLabel("Estimate the flood depth:");
+        floodDepthLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
+        panel.add(floodDepthLabel);
+
+        JPanel floodDepthButtonPanel = new JPanel();
+
+        String[] floodDepths = {"Low", "Medium", "High"};
+        List<JButton> floodDepthButtons = new ArrayList<>();
+        for (String floodDepth : floodDepths) {
+            JButton floodDepthButton = new JButton(floodDepth);
+            floodDepthButton.setFont(new Font(ARIAL, Font.BOLD, 20));
+            floodDepthButton.setBorder(defaultBorder);
+            floodDepthButton.setOpaque(false);
+            floodDepthButton.setEnabled(false);
+            floodDepthButtons.add(floodDepthButton);
+        }
+
+        for (JButton floodDepthButton : floodDepthButtons) {
+            floodDepthButton.addActionListener(e -> {
+                if (currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equals(floodDepthButton.getText().toLowerCase())) {
+                    floodDepthButton.setBorder(defaultBorder);
+                    setFloodDepthLabel(null);
+                } else {
+                    for (JButton button : floodDepthButtons) {
+                        button.setBorder(button == floodDepthButton ? selectedBorder : defaultBorder);
+                    }
+                    setFloodDepthLabel(floodDepthButton.getText().toLowerCase());
+                }
+            });
+            floodDepthButtonPanel.add(floodDepthButton);
+        }
+
+        buttonGroups.add(floodDepthButtons);
+        panel.add(floodDepthButtonPanel);
+
+        return panel;
+    }
+
+    private void loadImages() {
         List<String> paths = new ArrayList<>();
         File dir = new File(directoryPath);
         File[] files = dir.listFiles();
@@ -129,7 +265,7 @@ public class Labeler extends JFrame {
             }
         }
 
-        return paths;
+        imagePaths = paths;
     }
 
     private void displayImage(String imagePath) {
@@ -137,20 +273,24 @@ public class Labeler extends JFrame {
             // Update the filename label with the image's filename
             File file = new File(imagePath);
             filenameLabel.setText(file.getName());
-
-            // Load and scale the image
-            BufferedImage img = ImageIO.read(new File(imagePath));
-            ImageIcon icon = new ImageIcon(img);
-            imageLabel.setIcon(icon);
-
-            // Clear the text and enable the button
-            imageLabel.setText("");
+            
+            // Set the filename label
+            filenameLabel.setText(new File(imagePath).getName());
+            
+            // Repaint the panel to display the new image
+            BufferedImage image = ImageIO.read(file);
+            imagePanel.setText(null);
+            imagePanel.setImage(image);
+            imagePanel.repaint();
 
             // Update the counter label
             counterLabel.setText((currentIndex + 1) + " / " + imagePaths.size());
 
             // Update current item
             currentItem = new CurrentItem(file.getName());
+
+            // Disable the next button until all labels are set
+            nextButton.setEnabled(false);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -163,7 +303,7 @@ public class Labeler extends JFrame {
         currentItem = null;
 
         if (imagePaths.isEmpty()) {
-            displayMessage("No images available to label. Please check the directory.");
+            displayMessage("No images available to label. Please check the folder you selected.");
         } else if (currentIndex + 1 < imagePaths.size()) {
             currentIndex++;
             String imagePath = imagePaths.get(currentIndex);
@@ -172,27 +312,50 @@ public class Labeler extends JFrame {
                 nextImage();
                 return;
             }
+            for (List<JButton> buttonGroup : buttonGroups) {
+                for (JButton button : buttonGroup) {
+                    button.setBorder(defaultBorder);
+                }
+            }
             displayImage(imagePaths.get(currentIndex));
         } else {
-            displayMessage("No more images left to label. You've reached the end.");
+            displayMessage("No more images left to label. You may exit the program.");
         }
     }
 
     private void displayMessage(String message) {
-        imageLabel.setIcon(null);
-        imageLabel.setText(message);
-        imageLabel.setFont(new Font("Arial", Font.BOLD, 30));
-        imageLabel.setHorizontalAlignment(JLabel.CENTER);
+        imagePanel.setImage(null);
+        imagePanel.setText(message);
         filenameLabel.setText("");
         controlPanel.setVisible(false);
+    }
+
+    private void setUrbanLabel(boolean isUrban) {
+        if (currentItem != null) {
+            currentItem.setIsUrban(isUrban);
+            nextButton.setEnabled(currentItem.isComplete());
+        }
     }
 
     private void setFloodingLabel(boolean hasFlooding) {
         if (currentItem != null) {
             currentItem.setHasFlooding(hasFlooding);
-            if (currentItem.isComplete()) {
-                nextButton.setEnabled(true);
+            for (JButton button : buttonGroups.get(2)) {
+                button.setOpaque(hasFlooding);
+                button.setEnabled(hasFlooding);
+                if (!hasFlooding) {
+                    button.setBorder(defaultBorder);
+                    currentItem.setFloodDepth(null);
+                }
             }
+            nextButton.setEnabled(currentItem.isComplete());
+        }
+    }
+
+    private void setFloodDepthLabel(String floodDepth) {
+        if (currentItem != null) {
+            currentItem.setFloodDepth(floodDepth);
+            nextButton.setEnabled(currentItem.isComplete());
         }
     }
 
@@ -217,7 +380,7 @@ public class Labeler extends JFrame {
         if (currentItem != null && !imageItems.containsKey(currentItem.getFilename()) && currentItem.isComplete()) {
             imageItems.put(currentItem.getFilename(), currentItem.toImageItem());
         }
-        System.out.println("Adding " + imageItems.size() + " labels to labels.json...");
+        System.out.println("Saving " + imageItems.size() + " labels to labels.json...");
         try {
             ObjectMapper mapper = new ObjectMapper();
             File file = new File("labels.json");
@@ -233,7 +396,6 @@ public class Labeler extends JFrame {
         } catch (UnsupportedLookAndFeelException e) {
             e.printStackTrace();
         }
-        String directoryPath = "./images";
-        SwingUtilities.invokeLater(() -> new Labeler(directoryPath));
+        SwingUtilities.invokeLater(Labeler::new);
     }
 }
