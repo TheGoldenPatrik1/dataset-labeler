@@ -34,4 +34,12 @@ class ImageItem {
     public String getFloodDepth() {
         return floodDepth;
     }
+
+    public CurrentItem toCurrentItem(String filename) {
+        CurrentItem currentItem = new CurrentItem(filename);
+        currentItem.setIsUrban(this.getIsUrban());
+        currentItem.setHasFlooding(this.getHasFlooding());
+        currentItem.setFloodDepth(this.getFloodDepth());
+        return currentItem;
+    }
 }

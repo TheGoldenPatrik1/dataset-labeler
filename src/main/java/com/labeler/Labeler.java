@@ -29,6 +29,7 @@ public class Labeler extends JFrame {
     private Map<String, ImageItem> imageItems;
     private CurrentItem currentItem;
 
+    private JButton previousButton;
     private JButton nextButton;
 
     private JPanel controlPanel;
@@ -80,6 +81,7 @@ public class Labeler extends JFrame {
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
         controlPanel.setPreferredSize(new Dimension(400, controlPanel.getPreferredSize().height));
 
+        // Create buttons for urban status
         controlPanel.add(createUrbanPanel());
 
         // Question label asking about flood status
@@ -87,23 +89,12 @@ public class Labeler extends JFrame {
         questionLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
         controlPanel.add(questionLabel);
 
-        // Create buttons for flood status selection
+        // Create buttons for flood status and water depth
         controlPanel.add(createFloodingButtonPanel());
+        controlPanel.add(createfloodDepthPanel());
 
-        // Create panel for water depth selection
-        JPanel floodDepthPanel = createfloodDepthPanel();
-        controlPanel.add(floodDepthPanel);
-
-        // Create a JButton to go to the next image (on the right side)
-        nextButton = new JButton("Next Image");
-        nextButton.setPreferredSize(new Dimension(100, 100));
-        nextButton.setFont(new Font(ARIAL, Font.BOLD, 20));
-        controlPanel.add(nextButton, BorderLayout.EAST);
-        nextButton.addActionListener(e -> nextImage());
-        nextButton.setEnabled(false);
-
-        // Set focus to another component to prevent other buttons from being focused
-        SwingUtilities.invokeLater(() -> nextButton.requestFocusInWindow());
+        // Create navigation panel
+        createNavigationPanel();
 
         // Add the control panel to the main panel
         mainPanel.add(controlPanel, BorderLayout.EAST);
@@ -111,11 +102,11 @@ public class Labeler extends JFrame {
         // Add the main panel to the frame
         add(mainPanel);
 
-        // Load images from the selected directory
-        loadImages();
-
         // Load labels from the JSON file
         loadLabels();
+
+        // Load images from the selected directory
+        loadImages();
 
         // Display the first image
         nextImage();
@@ -251,6 +242,25 @@ public class Labeler extends JFrame {
         return panel;
     }
 
+    private void createNavigationPanel() {
+        JPanel navigationPanel = new JPanel();
+        navigationPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
+
+        previousButton = new JButton("Previous");
+        previousButton.setFont(new Font(ARIAL, Font.BOLD, 20));
+        previousButton.addActionListener(e -> previousImage());
+        previousButton.setEnabled(false);
+        navigationPanel.add(previousButton);
+
+        nextButton = new JButton("Next");
+        nextButton.setFont(new Font(ARIAL, Font.BOLD, 20));
+        nextButton.addActionListener(e -> nextImage());
+        nextButton.setEnabled(false);
+        navigationPanel.add(nextButton);
+
+        add(navigationPanel, BorderLayout.SOUTH);
+    }
+
     private void loadImages() {
         List<String> paths = new ArrayList<>();
         File dir = new File(directoryPath);
@@ -259,7 +269,7 @@ public class Labeler extends JFrame {
         if (files != null) {
             for (File file : files) {
                 // Filter image files (you can extend this list of formats)
-                if (file.isFile() && (file.getName().endsWith(".jpg") || file.getName().endsWith(".png") || file.getName().endsWith(".jpeg"))) {
+                if (file.isFile() && (file.getName().endsWith(".jpg") || file.getName().endsWith(".png") || file.getName().endsWith(".jpeg")) && !imageItems.containsKey(file.getName())) {
                     paths.add(file.getAbsolutePath());
                 }
             }
@@ -287,39 +297,62 @@ public class Labeler extends JFrame {
             counterLabel.setText((currentIndex + 1) + " / " + imagePaths.size());
 
             // Update current item
-            currentItem = new CurrentItem(file.getName());
+            if (imageItems.containsKey(file.getName())) {
+                currentItem = imageItems.get(file.getName()).toCurrentItem(file.getName());
+                setFloodingLabel(currentItem.getHasFlooding());
+            } else {
+                currentItem = new CurrentItem(file.getName());
+            }
 
             // Disable the next button until all labels are set
-            nextButton.setEnabled(false);
+            nextButton.setEnabled(currentItem.isComplete());
+            previousButton.setEnabled(currentIndex > 0);
+            controlPanel.setVisible(true);
+
+            // Set focus to another component to prevent other buttons from being focused
+            SwingUtilities.invokeLater(() -> nextButton.requestFocusInWindow());
+
+            // Set the button borders
+            int index = 0;
+            for (List<JButton> buttonGroup : buttonGroups) {
+                for (JButton button : buttonGroup) {
+                    boolean condition;
+                    if (index == 0) {
+                        condition = (currentItem.getIsUrban() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getIsUrban() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
+                    } else if (index == 1) {
+                        condition = (currentItem.getHasFlooding() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getHasFlooding() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
+                    } else {
+                        condition = currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equalsIgnoreCase(button.getText());
+                    }
+                    button.setBorder(condition ? selectedBorder : defaultBorder);
+                }
+                index++;
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void nextImage() {
-        if (currentItem != null && !imageItems.containsKey(currentItem.getFilename()) && currentItem.isComplete()) {
-            imageItems.put(currentItem.getFilename(), currentItem.toImageItem());
-        }
+        updateImageItems();
         currentItem = null;
+        currentIndex++;
 
         if (imagePaths.isEmpty()) {
             displayMessage("No images available to label. Please check the folder you selected.");
-        } else if (currentIndex + 1 < imagePaths.size()) {
-            currentIndex++;
-            String imagePath = imagePaths.get(currentIndex);
-            File file = new File(imagePath);
-            if (imageItems.containsKey(file.getName())) {
-                nextImage();
-                return;
-            }
-            for (List<JButton> buttonGroup : buttonGroups) {
-                for (JButton button : buttonGroup) {
-                    button.setBorder(defaultBorder);
-                }
-            }
+        } else if (currentIndex < imagePaths.size()) {
             displayImage(imagePaths.get(currentIndex));
         } else {
             displayMessage("No more images left to label. You may exit the program.");
+        }
+    }
+
+    private void previousImage() {
+        updateImageItems();
+
+        if (currentIndex > 0) {
+            currentIndex--;
+            displayImage(imagePaths.get(currentIndex));
         }
     }
 
@@ -328,6 +361,8 @@ public class Labeler extends JFrame {
         imagePanel.setText(message);
         filenameLabel.setText("");
         controlPanel.setVisible(false);
+        nextButton.setEnabled(false);
+        previousButton.setEnabled(currentIndex > 0);
     }
 
     private void setUrbanLabel(boolean isUrban) {
@@ -377,9 +412,7 @@ public class Labeler extends JFrame {
     }
 
     private void onExit() {
-        if (currentItem != null && !imageItems.containsKey(currentItem.getFilename()) && currentItem.isComplete()) {
-            imageItems.put(currentItem.getFilename(), currentItem.toImageItem());
-        }
+        updateImageItems();
         System.out.println("Saving " + imageItems.size() + " labels to labels.json...");
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -387,6 +420,12 @@ public class Labeler extends JFrame {
             mapper.writeValue(file, imageItems);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    public void updateImageItems() {
+        if (currentItem != null && currentItem.isComplete()) {
+            imageItems.put(currentItem.getFilename(), currentItem.toImageItem());
         }
     }
 
