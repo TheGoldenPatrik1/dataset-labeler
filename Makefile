@@ -8,4 +8,9 @@ run:
 	@echo "Running..."
 	@java -jar target/my-labeler-project-1.0-SNAPSHOT.jar
 
+clean: compile
+	@rm labels.json
+	@echo "Removed labels.json"
+	@$(MAKE) run
+
 build: compile run

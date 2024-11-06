@@ -37,6 +37,7 @@ class CurrentItem extends ImageItem {
         imageItem.setIsUrban(this.getIsUrban());
         imageItem.setHasFlooding(this.getHasFlooding());
         imageItem.setFloodDepth(this.getFloodDepth());
+        imageItem.setObjects(this.getObjects());
         return imageItem;
     }
 

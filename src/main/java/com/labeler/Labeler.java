@@ -89,9 +89,10 @@ public class Labeler extends JFrame {
         questionLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
         controlPanel.add(questionLabel);
 
-        // Create buttons for flood status and water depth
+        // Create buttons for flood status, water depth, and object labels
         controlPanel.add(createFloodingButtonPanel());
-        controlPanel.add(createfloodDepthPanel());
+        controlPanel.add(createFloodDepthPanel());
+        controlPanel.add(createObjectLabelPanel());
 
         // Create navigation panel
         createNavigationPanel();
@@ -182,16 +183,13 @@ public class Labeler extends JFrame {
             JButton button = new JButton(status);
             button.setFont(new Font(ARIAL, Font.BOLD, 20));
             button.setBorder(defaultBorder);
-            floodingButtons.add(button);
-        }
-
-        for (JButton button : floodingButtons) {
             button.addActionListener(e -> {
                 for (JButton b : floodingButtons) {
                     b.setBorder(b == button ? selectedBorder : defaultBorder);
                 }
                 setFloodingLabel(button.getText().equalsIgnoreCase("yes"));
             });
+            floodingButtons.add(button);
             floodingButtonPanel.add(button, BorderLayout.CENTER);
         }
 
@@ -200,7 +198,7 @@ public class Labeler extends JFrame {
         return floodingButtonPanel;
     }
 
-    private JPanel createfloodDepthPanel() {
+    private JPanel createFloodDepthPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
@@ -218,10 +216,6 @@ public class Labeler extends JFrame {
             floodDepthButton.setBorder(defaultBorder);
             floodDepthButton.setOpaque(false);
             floodDepthButton.setEnabled(false);
-            floodDepthButtons.add(floodDepthButton);
-        }
-
-        for (JButton floodDepthButton : floodDepthButtons) {
             floodDepthButton.addActionListener(e -> {
                 if (currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equals(floodDepthButton.getText().toLowerCase())) {
                     floodDepthButton.setBorder(defaultBorder);
@@ -233,12 +227,49 @@ public class Labeler extends JFrame {
                     setFloodDepthLabel(floodDepthButton.getText().toLowerCase());
                 }
             });
+            floodDepthButtons.add(floodDepthButton);
             floodDepthButtonPanel.add(floodDepthButton);
         }
 
         buttonGroups.add(floodDepthButtons);
         panel.add(floodDepthButtonPanel);
 
+        return panel;
+    }
+
+    private JPanel createObjectLabelPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        JLabel objectLabel = new JLabel("Select objects:");
+        objectLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
+        panel.add(objectLabel);
+
+        JPanel objectButtonPanel = new JPanel();
+
+        String[] objectLabels = {"Buildings", "People", "Street", "Vegetation", "Vehicles"};
+        List<JButton> objectButtons = new ArrayList<>();
+        for (String object : objectLabels) {
+            JButton objectButton = new JButton(object);
+            objectButton.setFont(new Font(ARIAL, Font.BOLD, 20));
+            objectButton.setBorder(defaultBorder);
+            objectButton.addActionListener(e -> {
+                boolean isRemoval = objectButton.getBorder().equals(selectedBorder);
+                if (isRemoval) {
+                    objectButton.setBorder(defaultBorder);
+                    currentItem.removeObject(objectButton.getText());
+                } else {
+                    objectButton.setBorder(selectedBorder);
+                    currentItem.addObject(objectButton.getText());
+                }
+            });
+            objectButtons.add(objectButton);
+            objectButtonPanel.add(objectButton);
+        }
+
+        panel.add(objectButtonPanel);
+        buttonGroups.add(objectButtons);
+        
         return panel;
     }
 
@@ -321,8 +352,10 @@ public class Labeler extends JFrame {
                         condition = (currentItem.getIsUrban() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getIsUrban() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
                     } else if (index == 1) {
                         condition = (currentItem.getHasFlooding() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getHasFlooding() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
-                    } else {
+                    } else if (index == 2) {
                         condition = currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equalsIgnoreCase(button.getText());
+                    } else {
+                        condition = currentItem.hasObject(button.getText());
                     }
                     button.setBorder(condition ? selectedBorder : defaultBorder);
                 }
