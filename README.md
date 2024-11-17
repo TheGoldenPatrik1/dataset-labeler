@@ -10,4 +10,10 @@ This is a custom program to label urban flooding datasets, implemented using [Ja
 4. Execute `make` or `make build` to compile and run the program.
    * **Note for Windows Users**: as `make` is a Linux/Unix-specific command, you can either [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install) to run Linux on your Windows machine or manually run the following commands:
        1. `mvn clean package`
-       2. `java -jar target/my-labeler-project-1.0-SNAPSHOT.jar`
+       2. `java -jar target/my-labeler-project-1.2.0-SNAPSHOT.jar`
+
+## Changelog
+
+- **1.0** - Initial release.
+- **1.1** - Added a previous button.
+- **1.1** - Added the object label selection panel.
