@@ -7,6 +7,8 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,6 +37,8 @@ public class Labeler extends JFrame {
     private JPanel controlPanel;
 
     private List<List<JButton>> buttonGroups = new ArrayList<>();
+
+    private boolean shouldPreserveSelections = false;
 
     private static final String ARIAL = "Arial";
 
@@ -93,6 +97,9 @@ public class Labeler extends JFrame {
         controlPanel.add(createFloodingButtonPanel());
         controlPanel.add(createFloodDepthPanel());
         controlPanel.add(createObjectLabelPanel());
+
+        // Create preserve selections checkbox panel
+        createPreserveSelectionsPanel();
 
         // Create navigation panel
         createNavigationPanel();
@@ -273,6 +280,20 @@ public class Labeler extends JFrame {
         return panel;
     }
 
+    private void createPreserveSelectionsPanel() {
+        JPanel preserveSelectionsPanel = new JPanel();
+
+        JLabel checkboxLabel = new JLabel("Preserve selections");
+        checkboxLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
+        preserveSelectionsPanel.add(checkboxLabel);
+
+        JCheckBox checkbox = new JCheckBox();
+        checkbox.addItemListener(e -> shouldPreserveSelections = e.getStateChange() == ItemEvent.SELECTED);
+        preserveSelectionsPanel.add(checkbox);
+
+        controlPanel.add(preserveSelectionsPanel);
+    }
+
     private void createNavigationPanel() {
         JPanel navigationPanel = new JPanel();
         navigationPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
@@ -299,8 +320,16 @@ public class Labeler extends JFrame {
 
         if (files != null) {
             for (File file : files) {
-                // Filter image files (you can extend this list of formats)
-                if (file.isFile() && (file.getName().endsWith(".jpg") || file.getName().endsWith(".png") || file.getName().endsWith(".jpeg")) && !imageItems.containsKey(file.getName())) {
+                // Filter image files
+                if (
+                    file.isFile() &&
+                    (
+                        file.getName().endsWith(".jpg") ||
+                        file.getName().endsWith(".png") ||
+                        file.getName().endsWith(".jpeg")
+                    ) &&
+                    !imageItems.containsKey(file.getName())
+                ) {
                     paths.add(file.getAbsolutePath());
                 }
             }
@@ -328,11 +357,13 @@ public class Labeler extends JFrame {
             counterLabel.setText((currentIndex + 1) + " / " + imagePaths.size());
 
             // Update current item
+            boolean isNew = false;
             if (imageItems.containsKey(file.getName())) {
                 currentItem = imageItems.get(file.getName()).toCurrentItem(file.getName());
                 setFloodingLabel(currentItem.getHasFlooding());
             } else {
                 currentItem = new CurrentItem(file.getName());
+                isNew = true;
             }
 
             // Disable the next button until all labels are set
@@ -343,26 +374,52 @@ public class Labeler extends JFrame {
             // Set focus to another component to prevent other buttons from being focused
             SwingUtilities.invokeLater(() -> nextButton.requestFocusInWindow());
 
-            // Set the button borders
-            int index = 0;
+            // Update the buttons based on the current item
+            updateButtons(isNew);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateButtons(boolean isNew) {
+        int index = 0;
+
+        // Optionally preserve the selections from the previous image
+        // Only do this if the current item has not already been labeled
+        if (shouldPreserveSelections && isNew) {
             for (List<JButton> buttonGroup : buttonGroups) {
                 for (JButton button : buttonGroup) {
-                    boolean condition;
-                    if (index == 0) {
-                        condition = (currentItem.getIsUrban() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getIsUrban() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
-                    } else if (index == 1) {
-                        condition = (currentItem.getHasFlooding() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getHasFlooding() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
-                    } else if (index == 2) {
-                        condition = currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equalsIgnoreCase(button.getText());
-                    } else {
-                        condition = currentItem.hasObject(button.getText());
+                    if (button.getBorder().equals(selectedBorder)) {
+                        // We need to handle the object labels separately
+                        if (index == 3) {
+                            currentItem.addObject(button.getText());
+                        } else {
+                            button.doClick();
+                        }
                     }
-                    button.setBorder(condition ? selectedBorder : defaultBorder);
                 }
                 index++;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            return;
+        }
+
+        // If we aren't preserving the selections, we must set the button borders
+        index = 0;
+        for (List<JButton> buttonGroup : buttonGroups) {
+            for (JButton button : buttonGroup) {
+                boolean condition;
+                if (index == 0) {
+                    condition = (currentItem.getIsUrban() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getIsUrban() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
+                } else if (index == 1) {
+                    condition = (currentItem.getHasFlooding() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getHasFlooding() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
+                } else if (index == 2) {
+                    condition = currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equalsIgnoreCase(button.getText());
+                } else {
+                    condition = currentItem.hasObject(button.getText());
+                }
+                button.setBorder(condition ? selectedBorder : defaultBorder);
+            }
+            index++;
         }
     }
 

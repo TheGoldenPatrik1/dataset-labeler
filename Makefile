@@ -6,10 +6,10 @@ compile:
 
 run:
 	@echo "Running..."
-	@java -jar target/my-labeler-project-1.2.0-SNAPSHOT.jar
+	@java -jar target/my-labeler-project-1.2.1-SNAPSHOT.jar
 
 clean: compile
-	@rm labels.json
+	@rm -f labels.json
 	@echo "Removed labels.json"
 	@$(MAKE) run
 
