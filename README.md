@@ -1,6 +1,20 @@
 # Flood Dataset Labeler
 
-This is a custom program to label urban flooding datasets, implemented using [Java](https://www.java.com/en/).
+This is a custom program to label datasets, implemented using [Java](https://www.java.com/en/). Although it was originally intended specifically for urban flooding, subsequent releases have made it generalizable to many use cases.
+
+## Configuration
+
+In order to execute the program, you must create a [JSON](https://www.json.org/json-en.html) file named `options.json` in the current working directory in which you run the program. This file specifies all of the data labeling parameters. An example is provided [here](options.example.json).
+
+Generally speaking, the JSON file ought to be a dictionary, where the key is the name of the data field and the value is a dictionary that fits the following format:
+
+| Key | Type | Description | Required |
+| ---- | ---- | ---- | ---- |
+| `description` | `string` | The description of the data field and the label that will accompany the buttons. | Yes |
+| `type` | `string`; one of `"boolean"`, `"select-one"`, or `"select-many"` | The type of input that the data field accepts. | Yes |
+| `required` | `boolean` | Whether or not the data field is required | No |
+| `options` | `array` | The options that should be displayed for `select-one` and `select-many` input types. | No |
+| `disabled` | `dictionary` | A list of key, value pairs, where the key is the name of another data field and the value is the value of that data field for which this input should be disabled. | No |
 
 ## Steps to Run
 

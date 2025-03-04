@@ -134,7 +134,7 @@ public class Labeler extends JFrame {
                 inputOptions = mapper.readValue(file, mapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, InputOption.class));
                 System.out.println("Loaded " + inputOptions.size() + " options from options.json...");
             } else {
-                System.out.println("No options found, exiting...");
+                System.out.println("No options.json file found, exiting...");
                 System.exit(0);
             }
         } catch (IOException e) {

@@ -1,0 +1,35 @@
+{
+    "urban": {
+        "description": "Is the scence urban?",
+        "type": "boolean",
+        "required": true
+    },
+    "flooding": {
+        "description": "Is there flooding?",
+        "type": "boolean",
+        "required": true
+    },
+    "depth": {
+        "description": "Estimate the flood depth:",
+        "type": "select-one",
+        "options": [
+            "low",
+            "medium",
+            "high"
+        ],
+        "disabled": {
+            "flooding": false
+        }
+    },
+    "objects": {
+        "description": "Select objects:",
+        "type": "select-many",
+        "options": [
+            "buildings",
+            "people",
+            "street",
+            "vegetation",
+            "vehicles"
+        ]
+    }
+}
