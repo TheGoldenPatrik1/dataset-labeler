@@ -6,7 +6,7 @@ compile:
 
 run:
 	@echo "Running..."
-	@java -jar target/my-labeler-project-1.2.1-SNAPSHOT.jar
+	@java -jar target/my-labeler-project-2.0.0-SNAPSHOT.jar
 
 clean: compile
 	@rm -f labels.json

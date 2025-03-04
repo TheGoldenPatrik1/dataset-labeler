@@ -32,3 +32,4 @@ Generally speaking, the JSON file ought to be a dictionary, where the key is the
 - **1.1** - Added a previous button.
 - **1.2** - Added the object label selection panel.
 - **1.2.1** - Added a checkbox to preserve selections and auto-populate them for the next image.
+- **2.0.0** - Rewrite to support any type of labeling, based on a JSON file of options.
