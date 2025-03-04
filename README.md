@@ -15,6 +15,7 @@ Generally speaking, the JSON file ought to be a dictionary, where the key is the
 | `required` | `boolean` | Whether or not the data field is required | No |
 | `options` | `array` | The options that should be displayed for `select-one` and `select-many` input types. | No |
 | `disabled` | `dictionary` | A list of key, value pairs, where the key is the name of another data field and the value is the value of that data field for which this input should be disabled. | No |
+| `keybinds` | `dictionary` | A list of key, value pairs, where the key is a keyboard character and the value is the button option to click on that keyboard event. | No |
 
 ## Steps to Run
 
@@ -23,7 +24,7 @@ Generally speaking, the JSON file ought to be a dictionary, where the key is the
 3. Execute `make` or `make build` to compile and run the program.
    * **Note for Windows Users**: as `make` is a Linux/Unix-specific command, you can either [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install) to run Linux on your Windows machine or manually run the following commands:
        1. `mvn clean package`
-       2. `java -jar target/my-labeler-project-2.0.1-SNAPSHOT.jar`
+       2. `java -jar target/my-labeler-project-2.1.0-SNAPSHOT.jar`
 4. Use the GUI to select a directory of flood images to label.
 
 ### Arguments
@@ -44,3 +45,4 @@ Both the Makefile and the Java program accept the following command line argumen
 - **1.2.1** - Added a checkbox to preserve selections and auto-populate them for the next image.
 - **2.0.0** - Rewrite to support any type of labeling, based on a JSON file of options.
 - **2.0.1** - Added support for command line arguments.
+- **2.1.0** - Added a configuration option for keybinds.

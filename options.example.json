@@ -2,7 +2,11 @@
     "urban": {
         "description": "Is the scence urban?",
         "type": "boolean",
-        "required": true
+        "required": true,
+        "keybinds": {
+            "1": true,
+            "2": false
+        }
     },
     "flooding": {
         "description": "Is there flooding?",
@@ -19,6 +23,11 @@
         ],
         "disabled": {
             "flooding": false
+        },
+        "keybinds": {
+            "l": "low",
+            "m": "medium",
+            "h": "high"
         }
     },
     "objects": {

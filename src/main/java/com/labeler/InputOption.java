@@ -9,6 +9,7 @@ class InputOption {
     private boolean required = false;
     private List<String> options;
     private Map<String, Object> disabled;
+    private Map<String, Object> keybinds;
 
     public void setDescription(String description) {
         this.description = description;
@@ -43,5 +44,12 @@ class InputOption {
     }
     public Map<String, Object> getDisabled() {
         return this.disabled;
+    }
+
+    public void setKeybinds(Map<String, Object> keybinds) {
+        this.keybinds = keybinds;
+    }
+    public Map<String, Object> getKeybinds() {
+        return this.keybinds;
     }
 }

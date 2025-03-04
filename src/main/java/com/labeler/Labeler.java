@@ -19,9 +19,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.stream.*;
 import java.util.Iterator;
 import javax.imageio.ImageIO;
+import java.awt.event.KeyEvent;
 
 public class Labeler extends JFrame {
     private Map<String, InputOption> inputOptions;
@@ -46,6 +48,8 @@ public class Labeler extends JFrame {
     private JPanel controlPanel;
 
     private Map<String, List<JButton>> buttonGroups = new HashMap<>();
+
+    private transient Map<String, Map.Entry<String, Object>> keybinds = new HashMap<>();
 
     private boolean shouldPreserveSelections = false;
 
@@ -117,6 +121,9 @@ public class Labeler extends JFrame {
 
         // Display the first image
         nextImage();
+
+        // Build keybind listers
+        buildKeybinds();
         
         // Make the frame visible
         setVisible(true);
@@ -174,7 +181,18 @@ public class Labeler extends JFrame {
 
             buildControlPanelOption(entry.getKey(), option, panel);
 
+            addControlPanelKeyBinds(entry.getKey(), option);
+
             controlPanel.add(panel);
+        }
+    }
+
+    private void addControlPanelKeyBinds(String key, InputOption option) {
+        Map<String, Object> optionKeybinds = option.getKeybinds();
+        if (optionKeybinds != null) {
+            for (Map.Entry<String, Object> keybind : optionKeybinds.entrySet()) {
+                keybinds.put(keybind.getKey(), new SimpleEntry<>(key, keybind.getValue()));
+            }
         }
     }
 
@@ -623,6 +641,49 @@ public class Labeler extends JFrame {
     public void updateImageItems() {
         if (currentItem != null && currentItem.isComplete()) {
             imageItems.put(currentItem.getFilename(), currentItem);
+        }
+    }
+
+    private void buildKeybinds() {
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                int code = e.getKeyCode();
+                if (code == 10) {
+                    nextButton.doClick();
+                } else {
+                    handleButtonKeybinds(code);
+                }
+            }
+            return false;
+        });
+    }
+
+    private void handleButtonKeybinds(int code) {
+        String eventKey = KeyEvent.getKeyText(code).toLowerCase();
+        Map.Entry<String, Object> keybind = keybinds.get(eventKey);
+        if (keybind != null) {
+            String optionKey = keybind.getKey();
+            String optionType = inputOptions.get(optionKey).getType();
+            Object inputValue = keybind.getValue();
+            for (JButton button : buttonGroups.get(optionKey)) {
+                checkButtonKeybind(optionType, inputValue, button);
+            }
+        }
+    }
+
+    private void checkButtonKeybind(String optionType, Object inputValue, JButton button) {
+        if (
+            (
+                optionType.equals("boolean") &&
+                (button.getText().equalsIgnoreCase("yes") && (Boolean) inputValue) ||
+                (button.getText().equalsIgnoreCase("no") && !((Boolean) inputValue))
+            ) ||
+            (
+                (optionType.equals("select-one") || optionType.equals("select-many")) &&
+                button.getText().equalsIgnoreCase(inputValue.toString())
+            )
+        ) {
+            button.doClick();
         }
     }
 
