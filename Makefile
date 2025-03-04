@@ -6,7 +6,7 @@ compile:
 
 run:
 	@echo "Running..."
-	@java -jar target/my-labeler-project-2.0.0-SNAPSHOT.jar
+	@java -jar target/my-labeler-project-2.0.1-SNAPSHOT.jar -i $(images) -l $(labels) -o $(options)
 
 clean: compile
 	@rm -f labels.json
@@ -14,3 +14,10 @@ clean: compile
 	@$(MAKE) run
 
 build: compile run
+
+# Allow passing command-line arguments to the Makefile
+.PHONY: build
+
+# Prevent make from interpreting arguments as targets
+%:
+	@:

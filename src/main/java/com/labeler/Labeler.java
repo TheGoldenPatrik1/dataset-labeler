@@ -26,7 +26,9 @@ import javax.imageio.ImageIO;
 public class Labeler extends JFrame {
     private Map<String, InputOption> inputOptions;
 
-    private String directoryPath;
+    private static String directoryPath;
+    private static String labelPath = "labels.json";
+    private static String optionPath = "options.json";
 
     private JLabel filenameLabel;
     private JLabel counterLabel;
@@ -61,11 +63,8 @@ public class Labeler extends JFrame {
         loadOptions();
 
         // Select the image directory
-        directoryPath = selectImageDirectory();
-
-        // Exit if no directory is selected
         if (directoryPath == null) {
-            System.exit(0);
+            directoryPath = selectImageDirectory();
         }
 
         // Initialize the JFrame
@@ -129,10 +128,10 @@ public class Labeler extends JFrame {
     private void loadOptions() {
         try {
             ObjectMapper mapper = new ObjectMapper();
-            File file = new File("options.json");
+            File file = new File(optionPath);
             if (file.exists()) {
                 inputOptions = mapper.readValue(file, mapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, InputOption.class));
-                System.out.println("Loaded " + inputOptions.size() + " options from options.json...");
+                System.out.println("Loaded " + inputOptions.size() + " options from " + optionPath + "...");
             } else {
                 System.out.println("No options.json file found, exiting...");
                 System.exit(0);
@@ -158,7 +157,8 @@ public class Labeler extends JFrame {
             return selectedDirectory.getAbsolutePath();
         }
 
-        // Return null if no directory was selected
+        // Exit if no directory was selected
+        System.exit(0);
         return null;
     }
 
@@ -514,19 +514,19 @@ public class Labeler extends JFrame {
     private void loadLabels() {
         try {
             ObjectMapper mapper = new ObjectMapper();
-            File file = new File("labels.json");
+            File file = new File(labelPath);
             imageItems = new HashMap<>();
 
             if (file.exists()) {
                 JsonNode rootNode = mapper.readTree(file);
                 if (rootNode.isObject()) {
-                    System.out.println("Loaded " + rootNode.size() + " items from labels.json...");
+                    System.out.println("Loaded " + rootNode.size() + " items from " +  labelPath + "...");
                     decodeJSON(rootNode);
                 } else {
-                    System.out.println("Invalid JSON structure in labels.json.");
+                    System.out.println("Invalid JSON structure in " + labelPath + ".");
                 }
             } else {
-                System.out.println("No labels found, creating labels.json...");
+                System.out.println("No labels found, creating " + labelPath + "...");
                 mapper.writeValue(file, new ArrayList<>());
             }
         } catch (IOException e) {
@@ -567,14 +567,14 @@ public class Labeler extends JFrame {
 
     private void onExit() {
         updateImageItems();
-        System.out.println("Saving " + imageItems.size() + " labels to labels.json...");
+        System.out.println("Saving " + imageItems.size() + " labels to " + labelPath + "...");
         try {
             ObjectMapper mapper = new ObjectMapper();
             ObjectNode root = mapper.createObjectNode();
 
             encodeJSON(mapper, root);
 
-            File file = new File("labels.json");
+            File file = new File(labelPath);
             mapper.writerWithDefaultPrettyPrinter().writeValue(file, root);
         } catch (IOException e) {
             e.printStackTrace();
@@ -626,7 +626,43 @@ public class Labeler extends JFrame {
         }
     }
 
+    private static void parseArgs(String[] args) {
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equalsIgnoreCase("-i") && i + 1 < args.length) {
+                parseImageArg(args[i + 1]);
+            } else if (args[i].equalsIgnoreCase("-l") && i + 1 < args.length) {
+                parseLabelArg(args[i + 1]);
+            } else if (args[i].equalsIgnoreCase("-o") && i + 1 < args.length) {
+                parseOptionsArg(args[i + 1]);
+            }
+        }
+    }
+
+    private static void parseImageArg(String arg) {
+        File directory = new File(arg);
+        if (directory.exists() && directory.isDirectory()) {
+            directoryPath = arg;
+            System.out.println("Image directory: " + directoryPath);
+        }
+    }
+
+    private static void parseLabelArg(String arg) {
+        File file = new File(arg);
+        if (file.exists() && file.isFile() && arg.endsWith(".json")) {
+            labelPath = arg;
+        }
+    }
+
+    private static void parseOptionsArg(String arg) {
+        File file = new File(arg);
+        if (file.exists() && file.isFile() && arg.endsWith(".json")) {
+            optionPath = arg;
+        }
+    }
+
     public static void main(String[] args) {
+        parseArgs(args);
+
         try {
             UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (UnsupportedLookAndFeelException e) {
