@@ -132,7 +132,7 @@ public class Labeler extends JFrame {
             File file = new File("options.json");
             if (file.exists()) {
                 inputOptions = mapper.readValue(file, mapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, InputOption.class));
-                System.out.println("Loaded " + inputOptions.size() + " from options.json...");
+                System.out.println("Loaded " + inputOptions.size() + " options from options.json...");
             } else {
                 System.out.println("No options found, exiting...");
                 System.exit(0);
@@ -203,9 +203,7 @@ public class Labeler extends JFrame {
         String[] statuses = {"Yes", "No"};
         List<JButton> buttons = new ArrayList<>();
         for (String status : statuses) {
-            JButton button = new JButton(status);
-            button.setFont(new Font(ARIAL, Font.BOLD, 20));
-            button.setBorder(defaultBorder);
+            JButton button = buildButton(key, status);
             button.addActionListener(e -> {
                 for (JButton b : buttons) {
                     b.setBorder(b == button ? selectedBorder : defaultBorder);
@@ -226,9 +224,7 @@ public class Labeler extends JFrame {
 
         List<JButton> buttons = new ArrayList<>();
         for (String value : option.getOptions()) {
-            JButton button = new JButton(value);
-            button.setFont(new Font(ARIAL, Font.BOLD, 20));
-            button.setBorder(defaultBorder);
+            JButton button = buildButton(key, value);
             button.addActionListener(e -> {
                 for (JButton b : buttons) {
                     b.setBorder(b == button ? selectedBorder : defaultBorder);
@@ -237,9 +233,6 @@ public class Labeler extends JFrame {
             });
             buttons.add(button);
             buttonPanel.add(button);
-            Boolean shouldDisable = isDisabled(key);
-            button.setOpaque(!shouldDisable);
-            button.setEnabled(!shouldDisable);
         }
 
         buttonGroups.put(key, buttons);
@@ -252,9 +245,7 @@ public class Labeler extends JFrame {
 
         List<JButton> buttons = new ArrayList<>();
         for (String value : option.getOptions()) {
-            JButton button = new JButton(value);
-            button.setFont(new Font(ARIAL, Font.BOLD, 20));
-            button.setBorder(defaultBorder);
+            JButton button = buildButton(key, value);
             button.addActionListener(e -> {
                 boolean isRemoval = button.getBorder().equals(selectedBorder);
                 if (isRemoval) {
@@ -273,7 +264,19 @@ public class Labeler extends JFrame {
         panel.add(buttonPanel);
     }
 
-    private boolean isDisabled(String key) {
+    private JButton buildButton(String key, String value) {
+        JButton button = new JButton(value);
+        button.setFont(new Font(ARIAL, Font.BOLD, 20));
+        button.setBorder(defaultBorder);
+
+        Boolean shouldDisable = isButtonDisabled(key);
+        button.setOpaque(!shouldDisable);
+        button.setEnabled(!shouldDisable);
+
+        return button;
+    }
+
+    private boolean isButtonDisabled(String key) {
         InputOption option = inputOptions.get(key);
         if (option.getDisabled() != null) {
             if (currentItem == null) {
@@ -295,22 +298,30 @@ public class Labeler extends JFrame {
             nextButton.setEnabled(currentItem.isComplete());
             for (Map.Entry<String, InputOption> entry : inputOptions.entrySet()) {
                 if (!entry.getKey().equals(key) && entry.getValue().getDisabled() != null) {
-                    for (Map.Entry<String, Object> disabled : entry.getValue().getDisabled().entrySet()) {
-                        if (disabled.getKey().equals(key)) {
-                            buttonGroups.get(entry.getKey()).forEach(button -> {
-                                Boolean condition = value.toString().equals(disabled.getValue().toString());
-                                button.setOpaque(!condition);
-                                button.setEnabled(!condition);
-                                if (condition) {
-                                    button.setBorder(defaultBorder);
-                                    removeOption(entry.getKey(), button.getText());
-                                }
-                            });
-                        }
-                    }
+                    handleDisabledOption(entry, key, value);
                 }
             }
         }
+    }
+
+    private void handleDisabledOption(Map.Entry<String, InputOption> entry, String key, Object value) {
+        for (Map.Entry<String, Object> disabled : entry.getValue().getDisabled().entrySet()) {
+            if (disabled.getKey().equals(key)) {
+                updateDisabledButtonGroup(disabled, value, entry);
+            }
+        }
+    }
+
+    private void updateDisabledButtonGroup(Map.Entry<String, Object> disabled, Object value, Map.Entry<String, InputOption> entry) {
+        buttonGroups.get(entry.getKey()).forEach(button -> {
+            Boolean condition = value.toString().equals(disabled.getValue().toString());
+            button.setOpaque(!condition);
+            button.setEnabled(!condition);
+            if (condition) {
+                button.setBorder(defaultBorder);
+                removeOption(entry.getKey(), button.getText());
+            }
+        });
     }
 
     private void removeOption(String key, String value) {
@@ -426,15 +437,7 @@ public class Labeler extends JFrame {
         if (shouldPreserveSelections && isNew) {
             for (Map.Entry<String, List<JButton>> buttonGroup : buttonGroups.entrySet()) {
                 for (JButton button : buttonGroup.getValue()) {
-                    if (button.getBorder().equals(selectedBorder)) {
-                        // We need to handle select-many separately
-                        InputOption option = inputOptions.get(buttonGroup.getKey());
-                        if (option.getType().equals("select-many")) {
-                            currentItem.setOption(buttonGroup.getKey(), button.getText());
-                        } else {
-                            button.doClick();
-                        }
-                    }
+                    updateIndividualButton(button, buttonGroup);
                 }
             }
             return;
@@ -443,25 +446,36 @@ public class Labeler extends JFrame {
         // If we aren't preserving the selections, we must set the button borders
         for (Map.Entry<String, List<JButton>> buttonGroup : buttonGroups.entrySet()) {
             for (JButton button : buttonGroup.getValue()) {
-                boolean condition;
                 String type = inputOptions.get(buttonGroup.getKey()).getType();
                 Object value = currentItem.getOption(buttonGroup.getKey());
-
-                if (value == null) {
-                    button.setBorder(defaultBorder);
-                    continue;
-                }
-
-                if (type.equals("boolean")) {
-                    Boolean boolValue = Boolean.parseBoolean(value.toString());
-                    condition = (boolValue && button.getText().equalsIgnoreCase("yes")) || (!boolValue && button.getText().equalsIgnoreCase("no"));
-                } else if (type.equals("select-one")) {
-                    condition = value.equals(button.getText());
-                } else {
-                    condition = ((List<String>) value).contains(button.getText());
-                }
+                boolean condition = isButtonSelected(type, value, button.getText());
                 button.setBorder(condition ? selectedBorder : defaultBorder);
             }
+        }
+    }
+
+    private void updateIndividualButton(JButton button, Map.Entry<String, List<JButton>> buttonGroup) {
+        if (button.getBorder().equals(selectedBorder)) {
+            // We need to handle select-many separately
+            InputOption option = inputOptions.get(buttonGroup.getKey());
+            if (option.getType().equals("select-many")) {
+                currentItem.setOption(buttonGroup.getKey(), button.getText());
+            } else {
+                button.doClick();
+            }
+        }
+    }
+
+    private boolean isButtonSelected(String type, Object value, String buttonText) {
+        if (value == null) {
+            return false;
+        } else if (type.equals("boolean")) {
+            Boolean boolValue = Boolean.parseBoolean(value.toString());
+            return (boolValue && buttonText.equalsIgnoreCase("yes")) || (!boolValue && buttonText.equalsIgnoreCase("no"));
+        } else if (type.equals("select-one")) {
+            return value.equals(buttonText);
+        } else {
+            return ((List<String>) value).contains(buttonText);
         }
     }
 
@@ -507,35 +521,7 @@ public class Labeler extends JFrame {
                 JsonNode rootNode = mapper.readTree(file);
                 if (rootNode.isObject()) {
                     System.out.println("Loaded " + rootNode.size() + " items from labels.json...");
-
-                    // Iterate through raw JSON key-value pairs
-                    for (Iterator<Map.Entry<String, JsonNode>> it = rootNode.fields(); it.hasNext(); ) {
-                        Map.Entry<String, JsonNode> entry = it.next();
-                        String key = entry.getKey();
-                        JsonNode value = entry.getValue();
-
-                        ImageItem item = new ImageItem(key, inputOptions);
-                        
-                        for (Iterator<Map.Entry<String, JsonNode>> fields = value.fields(); fields.hasNext(); ) {
-                            Map.Entry<String, JsonNode> field = fields.next();
-                            String fieldName = field.getKey();
-                            JsonNode fieldValue = field.getValue();
-
-                            if (fieldValue.isArray()) {
-                                for (JsonNode node : fieldValue) {
-                                    item.setOption(fieldName, node.asText());
-                                }
-                            } else if (fieldValue.isBoolean()) {
-                                // If the value is a boolean, store it as Boolean
-                                item.setOption(fieldName, fieldValue.asBoolean());
-                            } else {
-                                // Otherwise, store it as a string
-                                item.setOption(fieldName, fieldValue.asText());
-                            }
-                        }
-
-                        imageItems.put(key, item);
-                    }
+                    decodeJSON(rootNode);
                 } else {
                     System.out.println("Invalid JSON structure in labels.json.");
                 }
@@ -548,6 +534,37 @@ public class Labeler extends JFrame {
         }
     }
 
+    private void decodeJSON(JsonNode rootNode) {
+        // Iterate through raw JSON key-value pairs
+        for (Iterator<Map.Entry<String, JsonNode>> it = rootNode.fields(); it.hasNext(); ) {
+            Map.Entry<String, JsonNode> entry = it.next();
+            String key = entry.getKey();
+            JsonNode value = entry.getValue();
+
+            ImageItem item = new ImageItem(key, inputOptions);
+            
+            for (Iterator<Map.Entry<String, JsonNode>> fields = value.fields(); fields.hasNext(); ) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                String fieldName = field.getKey();
+                JsonNode fieldValue = field.getValue();
+
+                if (fieldValue.isArray()) {
+                    for (JsonNode node : fieldValue) {
+                        item.setOption(fieldName, node.asText());
+                    }
+                } else if (fieldValue.isBoolean()) {
+                    // If the value is a boolean, store it as Boolean
+                    item.setOption(fieldName, fieldValue.asBoolean());
+                } else {
+                    // Otherwise, store it as a string
+                    item.setOption(fieldName, fieldValue.asText());
+                }
+            }
+
+            imageItems.put(key, item);
+        }
+    }
+
     private void onExit() {
         updateImageItems();
         System.out.println("Saving " + imageItems.size() + " labels to labels.json...");
@@ -555,48 +572,51 @@ public class Labeler extends JFrame {
             ObjectMapper mapper = new ObjectMapper();
             ObjectNode root = mapper.createObjectNode();
 
-            for (Map.Entry<String, ImageItem> entry : imageItems.entrySet()) {
-                String imageName = entry.getKey();
-                ImageItem imageItem = entry.getValue();
+            encodeJSON(mapper, root);
 
-                // Create JSON structure for the current image
-                ObjectNode imageNode = mapper.createObjectNode();
-
-                for (Map.Entry<String, InputOptionValue> labelEntry : imageItem.getOptions().entrySet()) {
-                    String key = labelEntry.getKey();
-                    InputOptionValue value = labelEntry.getValue();
-                    Object inputValue = value.getValue();
-
-                    if (inputValue == null) {
-                        continue;
-                    }
-
-                    switch (value.getType()) {
-                        case "boolean":
-                            imageNode.put(key, Boolean.parseBoolean(inputValue.toString())); // Convert string to boolean
-                            break;
-                        case "select-one":
-                            imageNode.put(key, inputValue.toString()); // Store as a string
-                            break;
-                        case "select-many":
-                            ArrayNode arrayNode = mapper.createArrayNode();
-                            for (String option : (ArrayList<String>)inputValue) {
-                                arrayNode.add(option);
-                            }
-                            imageNode.set(key, arrayNode); // Store as an array
-                            break;
-                    }
-                }
-
-                // Add the imageNode to the root JSON with the image filename as the key
-                root.set(imageName, imageNode);
-            }
-
-            // Write JSON to a file
             File file = new File("labels.json");
             mapper.writerWithDefaultPrettyPrinter().writeValue(file, root);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void encodeJSON(ObjectMapper mapper, ObjectNode root) {
+        for (Map.Entry<String, ImageItem> entry : imageItems.entrySet()) {
+            String imageName = entry.getKey();
+            ImageItem imageItem = entry.getValue();
+
+            // Create JSON structure for the current image
+            ObjectNode imageNode = mapper.createObjectNode();
+
+            for (Map.Entry<String, InputOptionValue> labelEntry : imageItem.getOptions().entrySet()) {
+                String key = labelEntry.getKey();
+                InputOptionValue value = labelEntry.getValue();
+                Object inputValue = value.getValue();
+
+                if (inputValue == null) {
+                    continue;
+                }
+
+                switch (value.getType()) {
+                    case "boolean":
+                        imageNode.put(key, Boolean.parseBoolean(inputValue.toString())); // Convert string to boolean
+                        break;
+                    case "select-one":
+                        imageNode.put(key, inputValue.toString()); // Store as a string
+                        break;
+                    case "select-many":
+                        ArrayNode arrayNode = mapper.createArrayNode();
+                        for (String option : (ArrayList<String>)inputValue) {
+                            arrayNode.add(option);
+                        }
+                        imageNode.set(key, arrayNode); // Store as an array
+                        break;
+                }
+            }
+
+            // Add the imageNode to the root JSON with the image filename as the key
+            root.set(imageName, imageNode);
         }
     }
 

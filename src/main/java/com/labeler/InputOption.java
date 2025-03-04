@@ -10,9 +10,6 @@ class InputOption {
     private List<String> options;
     private Map<String, Object> disabled;
 
-    public InputOption() {
-    }
-
     public void setDescription(String description) {
         this.description = description;
     }

@@ -6,9 +6,6 @@ class InputOptionValue extends InputOption {
     private Object value;
     private boolean hasUpdated = false;
 
-    public InputOptionValue() {
-    }
-
     public void setValue(Object val) {
         if (this.getType().equals("select-many")) {
             if (this.value == null) {
