@@ -3,4 +3,5 @@ target/
 dependency-reduced-pom.xml
 images/
 labels.json
+options.json
 *.docx

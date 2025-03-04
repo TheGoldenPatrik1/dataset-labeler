@@ -1,5 +1,8 @@
 package src.main.java.com.labeler;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.formdev.flatlaf.FlatLightLaf;
 
@@ -15,10 +18,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.stream.*;
+import java.util.Iterator;
 import javax.imageio.ImageIO;
 
 public class Labeler extends JFrame {
+    private Map<String, InputOption> inputOptions;
+
     private String directoryPath;
 
     private JLabel filenameLabel;
@@ -29,14 +36,14 @@ public class Labeler extends JFrame {
     private List<String> imagePaths;
     private int currentIndex = -1;
     private Map<String, ImageItem> imageItems;
-    private CurrentItem currentItem;
+    private ImageItem currentItem;
 
     private JButton previousButton;
     private JButton nextButton;
 
     private JPanel controlPanel;
 
-    private List<List<JButton>> buttonGroups = new ArrayList<>();
+    private Map<String, List<JButton>> buttonGroups = new HashMap<>();
 
     private boolean shouldPreserveSelections = false;
 
@@ -49,6 +56,9 @@ public class Labeler extends JFrame {
     public Labeler() {
         // Set the title of the JFrame
         super("Dataset Labeler");
+
+        // Load options from JSON file
+        loadOptions();
 
         // Select the image directory
         directoryPath = selectImageDirectory();
@@ -85,18 +95,8 @@ public class Labeler extends JFrame {
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
         controlPanel.setPreferredSize(new Dimension(400, controlPanel.getPreferredSize().height));
 
-        // Create buttons for urban status
-        controlPanel.add(createUrbanPanel());
-
-        // Question label asking about flood status
-        JLabel questionLabel = new JLabel("Is there flooding?");
-        questionLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
-        controlPanel.add(questionLabel);
-
-        // Create buttons for flood status, water depth, and object labels
-        controlPanel.add(createFloodingButtonPanel());
-        controlPanel.add(createFloodDepthPanel());
-        controlPanel.add(createObjectLabelPanel());
+        // Add panels to the control panel based on the pre-loaded options
+        loadControlPanelOptions();
 
         // Create preserve selections checkbox panel
         createPreserveSelectionsPanel();
@@ -126,6 +126,22 @@ public class Labeler extends JFrame {
         Runtime.getRuntime().addShutdownHook(new Thread(this::onExit));
     }
 
+    private void loadOptions() {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            File file = new File("options.json");
+            if (file.exists()) {
+                inputOptions = mapper.readValue(file, mapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, InputOption.class));
+                System.out.println("Loaded " + inputOptions.size() + " from options.json...");
+            } else {
+                System.out.println("No options found, exiting...");
+                System.exit(0);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private String selectImageDirectory() {
         // Create a JFileChooser for directory selection
         JFileChooser directoryChooser = new JFileChooser();
@@ -146,138 +162,162 @@ public class Labeler extends JFrame {
         return null;
     }
 
-    private JPanel createUrbanPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+    private void loadControlPanelOptions() {
+        for (Map.Entry<String, InputOption> entry : inputOptions.entrySet()) {
+            InputOption option = entry.getValue();
+            JPanel panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-        JLabel urbanLabel = new JLabel("Is the scene urban?");
-        urbanLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
-        panel.add(urbanLabel);
+            JLabel label = new JLabel(option.getDescription());
+            label.setFont(new Font(ARIAL, Font.PLAIN, 20));
+            panel.add(label);
 
-        JPanel urbanButtonPanel = new JPanel();
+            buildControlPanelOption(entry.getKey(), option, panel);
 
-        String[] urbanStatuses = {"Yes", "No"};
-        List<JButton> urbanButtons = new ArrayList<>();
-        for (String status : urbanStatuses) {
+            controlPanel.add(panel);
+        }
+    }
+
+    private void buildControlPanelOption(String key, InputOption option, JPanel panel) {
+        switch (option.getType()) {
+            case "boolean":
+                buildBooleanOption(key, panel);
+                break;
+            case "select-one":
+                buildSelectOneOption(key, option, panel);
+                break;
+            case "select-many":
+                buildSelectManyOption(key, option, panel);
+                break;
+            default:
+                System.out.println("Invalid option type: " + option.getType());
+                System.exit(0);
+                break;
+        }
+    }
+
+    private void buildBooleanOption(String key, JPanel panel) {
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+
+        String[] statuses = {"Yes", "No"};
+        List<JButton> buttons = new ArrayList<>();
+        for (String status : statuses) {
             JButton button = new JButton(status);
             button.setFont(new Font(ARIAL, Font.BOLD, 20));
             button.setBorder(defaultBorder);
-            urbanButtons.add(button);
-        }
-
-        for (JButton button : urbanButtons) {
             button.addActionListener(e -> {
-                for (JButton b : urbanButtons) {
+                for (JButton b : buttons) {
                     b.setBorder(b == button ? selectedBorder : defaultBorder);
                 }
-                setUrbanLabel(button.getText().equalsIgnoreCase("yes"));
+                setOption(key, button.getText().equalsIgnoreCase("yes"));
             });
-            urbanButtonPanel.add(button, BorderLayout.CENTER);
+            buttons.add(button);
+            buttonPanel.add(button);
         }
 
-        buttonGroups.add(urbanButtons);
-        panel.add(urbanButtonPanel);
-
-        return panel;
+        buttonGroups.put(key, buttons);
+        panel.add(buttonPanel);
     }
 
-    private JPanel createFloodingButtonPanel() {
-        JPanel floodingButtonPanel = new JPanel();
+    private void buildSelectOneOption(String key, InputOption option, JPanel panel) {
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
 
-        String[] floodingStatuses = {"Yes", "No"};
-        List<JButton> floodingButtons = new ArrayList<>();
-        for (String status : floodingStatuses) {
-            JButton button = new JButton(status);
+        List<JButton> buttons = new ArrayList<>();
+        for (String value : option.getOptions()) {
+            JButton button = new JButton(value);
             button.setFont(new Font(ARIAL, Font.BOLD, 20));
             button.setBorder(defaultBorder);
             button.addActionListener(e -> {
-                for (JButton b : floodingButtons) {
+                for (JButton b : buttons) {
                     b.setBorder(b == button ? selectedBorder : defaultBorder);
                 }
-                setFloodingLabel(button.getText().equalsIgnoreCase("yes"));
+                setOption(key, button.getText());
             });
-            floodingButtons.add(button);
-            floodingButtonPanel.add(button, BorderLayout.CENTER);
+            buttons.add(button);
+            buttonPanel.add(button);
+            Boolean shouldDisable = isDisabled(key);
+            button.setOpaque(!shouldDisable);
+            button.setEnabled(!shouldDisable);
         }
 
-        buttonGroups.add(floodingButtons);
-
-        return floodingButtonPanel;
+        buttonGroups.put(key, buttons);
+        panel.add(buttonPanel);
     }
 
-    private JPanel createFloodDepthPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+    private void buildSelectManyOption(String key, InputOption option, JPanel panel) {
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
 
-        JLabel floodDepthLabel = new JLabel("Estimate the flood depth:");
-        floodDepthLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
-        panel.add(floodDepthLabel);
-
-        JPanel floodDepthButtonPanel = new JPanel();
-
-        String[] floodDepths = {"Low", "Medium", "High"};
-        List<JButton> floodDepthButtons = new ArrayList<>();
-        for (String floodDepth : floodDepths) {
-            JButton floodDepthButton = new JButton(floodDepth);
-            floodDepthButton.setFont(new Font(ARIAL, Font.BOLD, 20));
-            floodDepthButton.setBorder(defaultBorder);
-            floodDepthButton.setOpaque(false);
-            floodDepthButton.setEnabled(false);
-            floodDepthButton.addActionListener(e -> {
-                if (currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equals(floodDepthButton.getText().toLowerCase())) {
-                    floodDepthButton.setBorder(defaultBorder);
-                    setFloodDepthLabel(null);
-                } else {
-                    for (JButton button : floodDepthButtons) {
-                        button.setBorder(button == floodDepthButton ? selectedBorder : defaultBorder);
-                    }
-                    setFloodDepthLabel(floodDepthButton.getText().toLowerCase());
-                }
-            });
-            floodDepthButtons.add(floodDepthButton);
-            floodDepthButtonPanel.add(floodDepthButton);
-        }
-
-        buttonGroups.add(floodDepthButtons);
-        panel.add(floodDepthButtonPanel);
-
-        return panel;
-    }
-
-    private JPanel createObjectLabelPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-
-        JLabel objectLabel = new JLabel("Select objects:");
-        objectLabel.setFont(new Font(ARIAL, Font.PLAIN, 20));
-        panel.add(objectLabel);
-
-        JPanel objectButtonPanel = new JPanel();
-
-        String[] objectLabels = {"Buildings", "People", "Street", "Vegetation", "Vehicles"};
-        List<JButton> objectButtons = new ArrayList<>();
-        for (String object : objectLabels) {
-            JButton objectButton = new JButton(object);
-            objectButton.setFont(new Font(ARIAL, Font.BOLD, 20));
-            objectButton.setBorder(defaultBorder);
-            objectButton.addActionListener(e -> {
-                boolean isRemoval = objectButton.getBorder().equals(selectedBorder);
+        List<JButton> buttons = new ArrayList<>();
+        for (String value : option.getOptions()) {
+            JButton button = new JButton(value);
+            button.setFont(new Font(ARIAL, Font.BOLD, 20));
+            button.setBorder(defaultBorder);
+            button.addActionListener(e -> {
+                boolean isRemoval = button.getBorder().equals(selectedBorder);
                 if (isRemoval) {
-                    objectButton.setBorder(defaultBorder);
-                    currentItem.removeObject(objectButton.getText());
+                    button.setBorder(defaultBorder);
+                    removeOption(key, button.getText());
                 } else {
-                    objectButton.setBorder(selectedBorder);
-                    currentItem.addObject(objectButton.getText());
+                    button.setBorder(selectedBorder);
+                    setOption(key, button.getText());
                 }
             });
-            objectButtons.add(objectButton);
-            objectButtonPanel.add(objectButton);
+            buttons.add(button);
+            buttonPanel.add(button);
         }
 
-        panel.add(objectButtonPanel);
-        buttonGroups.add(objectButtons);
-        
-        return panel;
+        buttonGroups.put(key, buttons);
+        panel.add(buttonPanel);
+    }
+
+    private boolean isDisabled(String key) {
+        InputOption option = inputOptions.get(key);
+        if (option.getDisabled() != null) {
+            if (currentItem == null) {
+                return true;
+            }
+            for (Map.Entry<String, Object> disabled : option.getDisabled().entrySet()) {
+                Object value = currentItem.getOption(disabled.getKey());
+                if (value == null || value.equals(disabled.getValue().toString())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void setOption(String key, Object value) {
+        if (currentItem != null) {
+            currentItem.setOption(key, value.toString());
+            nextButton.setEnabled(currentItem.isComplete());
+            for (Map.Entry<String, InputOption> entry : inputOptions.entrySet()) {
+                if (!entry.getKey().equals(key) && entry.getValue().getDisabled() != null) {
+                    for (Map.Entry<String, Object> disabled : entry.getValue().getDisabled().entrySet()) {
+                        if (disabled.getKey().equals(key)) {
+                            buttonGroups.get(entry.getKey()).forEach(button -> {
+                                Boolean condition = value.toString().equals(disabled.getValue().toString());
+                                button.setOpaque(!condition);
+                                button.setEnabled(!condition);
+                                if (condition) {
+                                    button.setBorder(defaultBorder);
+                                    removeOption(entry.getKey(), button.getText());
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void removeOption(String key, String value) {
+        if (currentItem != null) {
+            currentItem.removeOption(key, value);
+            nextButton.setEnabled(currentItem.isComplete());
+        }
     }
 
     private void createPreserveSelectionsPanel() {
@@ -359,10 +399,9 @@ public class Labeler extends JFrame {
             // Update current item
             boolean isNew = false;
             if (imageItems.containsKey(file.getName())) {
-                currentItem = imageItems.get(file.getName()).toCurrentItem(file.getName());
-                setFloodingLabel(currentItem.getHasFlooding());
+                currentItem = imageItems.get(file.getName());
             } else {
-                currentItem = new CurrentItem(file.getName());
+                currentItem = new ImageItem(file.getName(), inputOptions);
                 isNew = true;
             }
 
@@ -382,44 +421,47 @@ public class Labeler extends JFrame {
     }
 
     private void updateButtons(boolean isNew) {
-        int index = 0;
-
         // Optionally preserve the selections from the previous image
         // Only do this if the current item has not already been labeled
         if (shouldPreserveSelections && isNew) {
-            for (List<JButton> buttonGroup : buttonGroups) {
-                for (JButton button : buttonGroup) {
+            for (Map.Entry<String, List<JButton>> buttonGroup : buttonGroups.entrySet()) {
+                for (JButton button : buttonGroup.getValue()) {
                     if (button.getBorder().equals(selectedBorder)) {
-                        // We need to handle the object labels separately
-                        if (index == 3) {
-                            currentItem.addObject(button.getText());
+                        // We need to handle select-many separately
+                        InputOption option = inputOptions.get(buttonGroup.getKey());
+                        if (option.getType().equals("select-many")) {
+                            currentItem.setOption(buttonGroup.getKey(), button.getText());
                         } else {
                             button.doClick();
                         }
                     }
                 }
-                index++;
             }
             return;
         }
 
         // If we aren't preserving the selections, we must set the button borders
-        index = 0;
-        for (List<JButton> buttonGroup : buttonGroups) {
-            for (JButton button : buttonGroup) {
+        for (Map.Entry<String, List<JButton>> buttonGroup : buttonGroups.entrySet()) {
+            for (JButton button : buttonGroup.getValue()) {
                 boolean condition;
-                if (index == 0) {
-                    condition = (currentItem.getIsUrban() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getIsUrban() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
-                } else if (index == 1) {
-                    condition = (currentItem.getHasFlooding() && button.getText().equalsIgnoreCase("yes")) || (!currentItem.getHasFlooding() && currentItem.isComplete() && button.getText().equalsIgnoreCase("no"));
-                } else if (index == 2) {
-                    condition = currentItem.getFloodDepth() != null && currentItem.getFloodDepth().equalsIgnoreCase(button.getText());
+                String type = inputOptions.get(buttonGroup.getKey()).getType();
+                Object value = currentItem.getOption(buttonGroup.getKey());
+
+                if (value == null) {
+                    button.setBorder(defaultBorder);
+                    continue;
+                }
+
+                if (type.equals("boolean")) {
+                    Boolean boolValue = Boolean.parseBoolean(value.toString());
+                    condition = (boolValue && button.getText().equalsIgnoreCase("yes")) || (!boolValue && button.getText().equalsIgnoreCase("no"));
+                } else if (type.equals("select-one")) {
+                    condition = value.equals(button.getText());
                 } else {
-                    condition = currentItem.hasObject(button.getText());
+                    condition = ((List<String>) value).contains(button.getText());
                 }
                 button.setBorder(condition ? selectedBorder : defaultBorder);
             }
-            index++;
         }
     }
 
@@ -455,44 +497,49 @@ public class Labeler extends JFrame {
         previousButton.setEnabled(currentIndex > 0);
     }
 
-    private void setUrbanLabel(boolean isUrban) {
-        if (currentItem != null) {
-            currentItem.setIsUrban(isUrban);
-            nextButton.setEnabled(currentItem.isComplete());
-        }
-    }
-
-    private void setFloodingLabel(boolean hasFlooding) {
-        if (currentItem != null) {
-            currentItem.setHasFlooding(hasFlooding);
-            for (JButton button : buttonGroups.get(2)) {
-                button.setOpaque(hasFlooding);
-                button.setEnabled(hasFlooding);
-                if (!hasFlooding) {
-                    button.setBorder(defaultBorder);
-                    currentItem.setFloodDepth(null);
-                }
-            }
-            nextButton.setEnabled(currentItem.isComplete());
-        }
-    }
-
-    private void setFloodDepthLabel(String floodDepth) {
-        if (currentItem != null) {
-            currentItem.setFloodDepth(floodDepth);
-            nextButton.setEnabled(currentItem.isComplete());
-        }
-    }
-
     private void loadLabels() {
         try {
             ObjectMapper mapper = new ObjectMapper();
             File file = new File("labels.json");
+            imageItems = new HashMap<>();
+
             if (file.exists()) {
-                imageItems = mapper.readValue(file, mapper.getTypeFactory().constructMapType(HashMap.class, String.class, ImageItem.class));
-                System.out.println("Loaded " + imageItems.size() + " from labels.json...");
+                JsonNode rootNode = mapper.readTree(file);
+                if (rootNode.isObject()) {
+                    System.out.println("Loaded " + rootNode.size() + " items from labels.json...");
+
+                    // Iterate through raw JSON key-value pairs
+                    for (Iterator<Map.Entry<String, JsonNode>> it = rootNode.fields(); it.hasNext(); ) {
+                        Map.Entry<String, JsonNode> entry = it.next();
+                        String key = entry.getKey();
+                        JsonNode value = entry.getValue();
+
+                        ImageItem item = new ImageItem(key, inputOptions);
+                        
+                        for (Iterator<Map.Entry<String, JsonNode>> fields = value.fields(); fields.hasNext(); ) {
+                            Map.Entry<String, JsonNode> field = fields.next();
+                            String fieldName = field.getKey();
+                            JsonNode fieldValue = field.getValue();
+
+                            if (fieldValue.isArray()) {
+                                for (JsonNode node : fieldValue) {
+                                    item.setOption(fieldName, node.asText());
+                                }
+                            } else if (fieldValue.isBoolean()) {
+                                // If the value is a boolean, store it as Boolean
+                                item.setOption(fieldName, fieldValue.asBoolean());
+                            } else {
+                                // Otherwise, store it as a string
+                                item.setOption(fieldName, fieldValue.asText());
+                            }
+                        }
+
+                        imageItems.put(key, item);
+                    }
+                } else {
+                    System.out.println("Invalid JSON structure in labels.json.");
+                }
             } else {
-                imageItems = new HashMap<>();
                 System.out.println("No labels found, creating labels.json...");
                 mapper.writeValue(file, new ArrayList<>());
             }
@@ -506,8 +553,48 @@ public class Labeler extends JFrame {
         System.out.println("Saving " + imageItems.size() + " labels to labels.json...");
         try {
             ObjectMapper mapper = new ObjectMapper();
+            ObjectNode root = mapper.createObjectNode();
+
+            for (Map.Entry<String, ImageItem> entry : imageItems.entrySet()) {
+                String imageName = entry.getKey();
+                ImageItem imageItem = entry.getValue();
+
+                // Create JSON structure for the current image
+                ObjectNode imageNode = mapper.createObjectNode();
+
+                for (Map.Entry<String, InputOptionValue> labelEntry : imageItem.getOptions().entrySet()) {
+                    String key = labelEntry.getKey();
+                    InputOptionValue value = labelEntry.getValue();
+                    Object inputValue = value.getValue();
+
+                    if (inputValue == null) {
+                        continue;
+                    }
+
+                    switch (value.getType()) {
+                        case "boolean":
+                            imageNode.put(key, Boolean.parseBoolean(inputValue.toString())); // Convert string to boolean
+                            break;
+                        case "select-one":
+                            imageNode.put(key, inputValue.toString()); // Store as a string
+                            break;
+                        case "select-many":
+                            ArrayNode arrayNode = mapper.createArrayNode();
+                            for (String option : (ArrayList<String>)inputValue) {
+                                arrayNode.add(option);
+                            }
+                            imageNode.set(key, arrayNode); // Store as an array
+                            break;
+                    }
+                }
+
+                // Add the imageNode to the root JSON with the image filename as the key
+                root.set(imageName, imageNode);
+            }
+
+            // Write JSON to a file
             File file = new File("labels.json");
-            mapper.writeValue(file, imageItems);
+            mapper.writerWithDefaultPrettyPrinter().writeValue(file, root);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -515,7 +602,7 @@ public class Labeler extends JFrame {
 
     public void updateImageItems() {
         if (currentItem != null && currentItem.isComplete()) {
-            imageItems.put(currentItem.getFilename(), currentItem.toImageItem());
+            imageItems.put(currentItem.getFilename(), currentItem);
         }
     }
 
