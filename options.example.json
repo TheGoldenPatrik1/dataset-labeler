@@ -1,6 +1,6 @@
 {
     "urban": {
-        "description": "Is the scence urban?",
+        "description": "Is the scene urban?",
         "type": "boolean",
         "required": true,
         "keybinds": {

@@ -24,7 +24,7 @@ Generally speaking, the JSON file ought to be a dictionary, where the key is the
 3. Execute `make` or `make build` to compile and run the program.
    * **Note for Windows Users**: as `make` is a Linux/Unix-specific command, you can either [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install) to run Linux on your Windows machine or manually run the following commands:
        1. `mvn clean package`
-       2. `java -jar target/my-labeler-project-2.1.0-SNAPSHOT.jar`
+       2. `java -jar target/my-labeler-project-2.1.1-SNAPSHOT.jar`
 4. Use the GUI to select a directory of flood images to label.
 
 ### Arguments
@@ -46,3 +46,4 @@ Both the Makefile and the Java program accept the following command line argumen
 - **2.0.0** - Rewrite to support any type of labeling, based on a JSON file of options.
 - **2.0.1** - Added support for command line arguments.
 - **2.1.0** - Added a configuration option for keybinds.
+- **2.1.1** - Improved control panel layout, making it more uniform and generalizable.

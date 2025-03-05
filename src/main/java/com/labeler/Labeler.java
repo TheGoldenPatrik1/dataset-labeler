@@ -174,10 +174,17 @@ public class Labeler extends JFrame {
             InputOption option = entry.getValue();
             JPanel panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-            JLabel label = new JLabel(option.getDescription());
+            JPanel labelPanel = new JPanel();
+            labelPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 0));
+            labelPanel.setMaximumSize(new Dimension(400, 50));
+
+            JLabel label = new JLabel("<html>" + option.getDescription() + "</html>");
             label.setFont(new Font(ARIAL, Font.PLAIN, 20));
-            panel.add(label);
+            labelPanel.add(label);
+
+            panel.add(labelPanel);
 
             buildControlPanelOption(entry.getKey(), option, panel);
 
@@ -216,7 +223,7 @@ public class Labeler extends JFrame {
 
     private void buildBooleanOption(String key, JPanel panel) {
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
 
         String[] statuses = {"Yes", "No"};
         List<JButton> buttons = new ArrayList<>();
@@ -238,7 +245,7 @@ public class Labeler extends JFrame {
 
     private void buildSelectOneOption(String key, InputOption option, JPanel panel) {
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setLayout(new GridLayout(0, 2, 5, 5));
 
         List<JButton> buttons = new ArrayList<>();
         for (String value : option.getOptions()) {
@@ -259,7 +266,7 @@ public class Labeler extends JFrame {
 
     private void buildSelectManyOption(String key, InputOption option, JPanel panel) {
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setLayout(new GridLayout(0, 2, 5, 5));
 
         List<JButton> buttons = new ArrayList<>();
         for (String value : option.getOptions()) {
@@ -286,6 +293,7 @@ public class Labeler extends JFrame {
         JButton button = new JButton(value);
         button.setFont(new Font(ARIAL, Font.BOLD, 20));
         button.setBorder(defaultBorder);
+        button.setPreferredSize(new Dimension(120, 40));
 
         Boolean shouldDisable = isButtonDisabled(key);
         button.setOpaque(!shouldDisable);
