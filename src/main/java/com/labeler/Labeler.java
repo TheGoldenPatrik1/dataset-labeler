@@ -44,6 +44,7 @@ public class Labeler extends JFrame {
 
     private JButton previousButton;
     private JButton nextButton;
+    private JButton skipButton;
 
     private JPanel controlPanel;
 
@@ -323,6 +324,7 @@ public class Labeler extends JFrame {
         if (currentItem != null) {
             currentItem.setOption(key, value.toString());
             nextButton.setEnabled(currentItem.isComplete());
+            skipButton.setEnabled(!currentItem.isComplete());
             for (Map.Entry<String, InputOption> entry : inputOptions.entrySet()) {
                 if (!entry.getKey().equals(key) && entry.getValue().getDisabled() != null) {
                     handleDisabledOption(entry, key, value);
@@ -355,6 +357,7 @@ public class Labeler extends JFrame {
         if (currentItem != null) {
             currentItem.removeOption(key, value);
             nextButton.setEnabled(currentItem.isComplete());
+            skipButton.setEnabled(!currentItem.isComplete());
         }
     }
 
@@ -387,6 +390,11 @@ public class Labeler extends JFrame {
         nextButton.addActionListener(e -> nextImage());
         nextButton.setEnabled(false);
         navigationPanel.add(nextButton);
+
+        skipButton = new JButton("Skip");
+        skipButton.setFont(new Font(ARIAL, Font.BOLD, 20));
+        skipButton.addActionListener(e -> nextImage());
+        navigationPanel.add(skipButton);
 
         add(navigationPanel, BorderLayout.SOUTH);
     }
@@ -445,6 +453,7 @@ public class Labeler extends JFrame {
 
             // Disable the next button until all labels are set
             nextButton.setEnabled(currentItem.isComplete());
+            skipButton.setEnabled(!currentItem.isComplete());
             previousButton.setEnabled(currentIndex > 0);
             controlPanel.setVisible(true);
 
@@ -535,6 +544,7 @@ public class Labeler extends JFrame {
         filenameLabel.setText("");
         controlPanel.setVisible(false);
         nextButton.setEnabled(false);
+        skipButton.setEnabled(false);
         previousButton.setEnabled(currentIndex > 0);
     }
 

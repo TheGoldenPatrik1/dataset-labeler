@@ -6,7 +6,7 @@ compile:
 
 run:
 	@echo "Running..."
-	@java -jar target/my-labeler-project-2.1.2-SNAPSHOT.jar -i $(images) -l $(labels) -o $(options)
+	@java -jar target/my-labeler-project-2.1.3-SNAPSHOT.jar -i $(images) -l $(labels) -o $(options)
 
 clean: compile
 	@rm -f labels.json
