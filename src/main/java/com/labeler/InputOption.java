@@ -2,12 +2,13 @@ package src.main.java.com.labeler;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 class InputOption {
     private String description;
     private String type;
     private boolean required = false;
-    private List<String> options;
+    private Map<String, String> options;
     private Map<String, Object> disabled;
     private Map<String, Object> keybinds;
 
@@ -32,10 +33,16 @@ class InputOption {
         return this.required;
     }
 
-    public void setOptions(List<String> options) {
-        this.options = options;
+    public void setOptions(Object options) {
+        if (options instanceof List) {
+            this.options = ((List<String>) options)
+                .stream()
+                .collect(Collectors.toMap(option -> option, option -> ""));
+        } else {
+            this.options = (Map<String, String>) options;
+        }
     }
-    public List<String> getOptions() {
+    public Map<String, String> getOptions() {
         return this.options;
     }
 

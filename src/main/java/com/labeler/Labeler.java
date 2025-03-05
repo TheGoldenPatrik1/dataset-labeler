@@ -228,7 +228,7 @@ public class Labeler extends JFrame {
         String[] statuses = {"Yes", "No"};
         List<JButton> buttons = new ArrayList<>();
         for (String status : statuses) {
-            JButton button = buildButton(key, status);
+            JButton button = buildButton(key, status, "");
             button.addActionListener(e -> {
                 for (JButton b : buttons) {
                     b.setBorder(b == button ? selectedBorder : defaultBorder);
@@ -248,8 +248,8 @@ public class Labeler extends JFrame {
         buttonPanel.setLayout(new GridLayout(0, 2, 5, 5));
 
         List<JButton> buttons = new ArrayList<>();
-        for (String value : option.getOptions()) {
-            JButton button = buildButton(key, value);
+        for (Map.Entry<String, String> entry : option.getOptions().entrySet()) {
+            JButton button = buildButton(key, entry.getKey(), entry.getValue());
             button.addActionListener(e -> {
                 for (JButton b : buttons) {
                     b.setBorder(b == button ? selectedBorder : defaultBorder);
@@ -269,8 +269,8 @@ public class Labeler extends JFrame {
         buttonPanel.setLayout(new GridLayout(0, 2, 5, 5));
 
         List<JButton> buttons = new ArrayList<>();
-        for (String value : option.getOptions()) {
-            JButton button = buildButton(key, value);
+        for (Map.Entry<String, String> entry : option.getOptions().entrySet()) {
+            JButton button = buildButton(key, entry.getKey(), entry.getValue());
             button.addActionListener(e -> {
                 boolean isRemoval = button.getBorder().equals(selectedBorder);
                 if (isRemoval) {
@@ -289,11 +289,12 @@ public class Labeler extends JFrame {
         panel.add(buttonPanel);
     }
 
-    private JButton buildButton(String key, String value) {
+    private JButton buildButton(String key, String value, String tooltip) {
         JButton button = new JButton(value);
         button.setFont(new Font(ARIAL, Font.BOLD, 20));
         button.setBorder(defaultBorder);
         button.setPreferredSize(new Dimension(120, 40));
+        button.setToolTipText(tooltip);
 
         Boolean shouldDisable = isButtonDisabled(key);
         button.setOpaque(!shouldDisable);

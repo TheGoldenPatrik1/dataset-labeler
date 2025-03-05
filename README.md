@@ -13,7 +13,7 @@ Generally speaking, the JSON file ought to be a dictionary, where the key is the
 | `description` | `string` | The description of the data field and the label that will accompany the buttons. | Yes |
 | `type` | `string`; one of `"boolean"`, `"select-one"`, or `"select-many"` | The type of input that the data field accepts. | Yes |
 | `required` | `boolean` | Whether or not the data field is required | No |
-| `options` | `array` | The options that should be displayed for `select-one` and `select-many` input types. | No |
+| `options` | `array` or `dictionary` | The options that should be displayed for `select-one` and `select-many` input types. If the options are a dictionary, the key is the option and the value is the corresponding hover tooltip. | No |
 | `disabled` | `dictionary` | A list of key, value pairs, where the key is the name of another data field and the value is the value of that data field for which this input should be disabled. | No |
 | `keybinds` | `dictionary` | A list of key, value pairs, where the key is a keyboard character and the value is the button option to click on that keyboard event. | No |
 
@@ -24,7 +24,7 @@ Generally speaking, the JSON file ought to be a dictionary, where the key is the
 3. Execute `make` or `make build` to compile and run the program.
    * **Note for Windows Users**: as `make` is a Linux/Unix-specific command, you can either [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install) to run Linux on your Windows machine or manually run the following commands:
        1. `mvn clean package`
-       2. `java -jar target/my-labeler-project-2.1.1-SNAPSHOT.jar`
+       2. `java -jar target/my-labeler-project-2.1.2-SNAPSHOT.jar`
 4. Use the GUI to select a directory of flood images to label.
 
 ### Arguments
@@ -47,3 +47,4 @@ Both the Makefile and the Java program accept the following command line argumen
 - **2.0.1** - Added support for command line arguments.
 - **2.1.0** - Added a configuration option for keybinds.
 - **2.1.1** - Improved control panel layout, making it more uniform and generalizable.
+- **2.1.2** - Add optional hover tooltips to the options field.

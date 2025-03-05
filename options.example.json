@@ -16,11 +16,11 @@
     "depth": {
         "description": "Estimate the flood depth:",
         "type": "select-one",
-        "options": [
-            "low",
-            "medium",
-            "high"
-        ],
+        "options": {
+            "low": "knee-deep or lower",
+            "medium": "between knee-deep and chest-deep",
+            "high": "above chest-deep"
+        },
         "disabled": {
             "flooding": false
         },
@@ -33,12 +33,12 @@
     "objects": {
         "description": "Select objects:",
         "type": "select-many",
-        "options": [
-            "buildings",
-            "people",
-            "street",
-            "vegetation",
-            "vehicles"
-        ]
+        "options": {
+            "buildings": "houses, businesses, roofs, and other structures",
+            "people": "men, women, and children",
+            "street": "fire hydrants, street signs, curbs, traffic lights, parking meters, traffic cones, street lights, railings, etc.",
+            "vegetation": "trees, shrubs, bushes, etc.",
+            "vehicles": "cars, trucks, motorcycles, buses, etc."
+        }
     }
 }
