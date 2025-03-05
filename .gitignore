@@ -5,3 +5,4 @@ images/
 labels.json
 options.json
 *.docx
+*.pptx
