@@ -42,6 +42,7 @@ public class Labeler extends JFrame {
     private Map<String, ImageItem> imageItems;
     private ImageItem currentItem;
 
+    private JButton goToButton;
     private JButton previousButton;
     private JButton nextButton;
     private JButton skipButton;
@@ -379,6 +380,11 @@ public class Labeler extends JFrame {
         JPanel navigationPanel = new JPanel();
         navigationPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
 
+        goToButton = new JButton("Go To");
+        goToButton.setFont(new Font(ARIAL, Font.BOLD, 20));
+        goToButton.addActionListener(e -> goToImage());
+        navigationPanel.add(goToButton);
+
         previousButton = new JButton("Previous");
         previousButton.setFont(new Font(ARIAL, Font.BOLD, 20));
         previousButton.addActionListener(e -> previousImage());
@@ -512,6 +518,21 @@ public class Labeler extends JFrame {
             return value.equals(buttonText);
         } else {
             return ((List<String>) value).contains(buttonText);
+        }
+    }
+
+    private void goToImage() {
+        String input = JOptionPane.showInputDialog(this, "Enter image index number:");
+        if (input != null) {
+            try {
+                int index = Integer.parseInt(input) - 1;
+                if (index >= 0 && index < imagePaths.size()) {
+                    currentIndex = index - 1;
+                    nextImage();
+                }
+            } catch (NumberFormatException ex) {
+                System.out.println("Invalid input: " + input);
+            }
         }
     }
 
