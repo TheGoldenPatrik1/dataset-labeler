@@ -50,3 +50,4 @@ Both the Makefile and the Java program accept the following command line argumen
 - **2.1.2** - Add optional hover tooltips to the options field.
 - **2.1.3** - Add skip button.
 - **2.1.4** - Add 'go to' button.
+- **2.1.5** - Add keybinds for previous, go to, and skip buttons.

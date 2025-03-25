@@ -690,6 +690,12 @@ public class Labeler extends JFrame {
                 int code = e.getKeyCode();
                 if (code == 10) {
                     nextButton.doClick();
+                } else if (code == 38) {
+                    goToButton.doClick();
+                } else if (code == 37) {
+                    previousButton.doClick();
+                } else if (code == 39) {
+                    skipButton.doClick();
                 } else {
                     handleButtonKeybinds(code);
                 }
