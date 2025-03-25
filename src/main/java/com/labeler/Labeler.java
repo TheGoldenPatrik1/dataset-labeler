@@ -383,23 +383,27 @@ public class Labeler extends JFrame {
         goToButton = new JButton("Go To");
         goToButton.setFont(new Font(ARIAL, Font.BOLD, 20));
         goToButton.addActionListener(e -> goToImage());
+        goToButton.setToolTipText("Go to image index (Up Arrow)");
         navigationPanel.add(goToButton);
 
         previousButton = new JButton("Previous");
         previousButton.setFont(new Font(ARIAL, Font.BOLD, 20));
         previousButton.addActionListener(e -> previousImage());
         previousButton.setEnabled(false);
+        previousButton.setToolTipText("Previous image (Left Arrow)");
         navigationPanel.add(previousButton);
 
         nextButton = new JButton("Next");
         nextButton.setFont(new Font(ARIAL, Font.BOLD, 20));
         nextButton.addActionListener(e -> nextImage());
         nextButton.setEnabled(false);
+        nextButton.setToolTipText("Next image (Enter)");
         navigationPanel.add(nextButton);
 
         skipButton = new JButton("Skip");
         skipButton.setFont(new Font(ARIAL, Font.BOLD, 20));
         skipButton.addActionListener(e -> nextImage());
+        skipButton.setToolTipText("Skip image (Right Arrow)");
         navigationPanel.add(skipButton);
 
         add(navigationPanel, BorderLayout.SOUTH);
